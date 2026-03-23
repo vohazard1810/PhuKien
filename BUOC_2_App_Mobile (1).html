@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#6366f1">
+<title>Quản Lý Kho</title>
+<link rel="manifest" href="manifest.json">
+
+<!-- QR Scanner library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 16px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    font-size: 15px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    padding: 20px 20px 16px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.3);
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+  .sync-btn {
+    background: rgba(255,255,255,0.2); border: none; color: white;
+    width: 38px; height: 38px; border-radius: 50%; font-size: 18px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .sync-btn:active { transform: scale(0.9); }
+
+  /* ── SETUP BANNER ── */
+  #setupBanner {
+    background: #fef3c7; border-left: 4px solid #f59e0b;
+    padding: 14px 16px; margin: 16px;
+    border-radius: var(--radius); font-size: 13px;
+    display: none;
+  }
+  #setupBanner strong { display: block; margin-bottom: 4px; color: #92400e; }
+  .setup-input {
+    width: 100%; margin-top: 8px; padding: 10px 12px;
+    border: 1.5px solid #d97706; border-radius: 10px;
+    font-size: 13px; font-family: monospace;
+  }
+  .setup-save-btn {
+    margin-top: 8px; padding: 10px 20px;
+    background: #d97706; color: white; border: none;
+    border-radius: 10px; font-size: 14px; font-weight: 600;
+    cursor: pointer; width: 100%;
+  }
+
+  /* ── NAV TABS ── */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    background: white; display: flex;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 10px 4px 8px;
+    cursor: pointer; border: none; background: none;
+    font-size: 10px; color: var(--muted); gap: 3px;
+    transition: color 0.2s;
+  }
+  .nav-item.active { color: var(--primary); }
+  .nav-item .icon { font-size: 22px; }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* ── STATS ROW ── */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow); text-align: center;
+  }
+  .stat-card .val { font-size: 28px; font-weight: 800; }
+  .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-card.danger .val { color: var(--danger); }
+  .stat-card.warning .val { color: var(--warning); }
+  .stat-card.success .val { color: var(--success); }
+
+  /* ── SEARCH ── */
+  .search-wrap { position: relative; margin-bottom: 14px; }
+  .search-wrap input {
+    width: 100%; padding: 12px 16px 12px 42px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    font-size: 14px; background: var(--card); outline: none;
+  }
+  .search-wrap input:focus { border-color: var(--primary); }
+  .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; }
+
+  /* ── PRODUCT CARD ── */
+  .product-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 10px;
+    box-shadow: var(--shadow); cursor: pointer;
+    transition: transform 0.15s;
+    border-left: 4px solid transparent;
+  }
+  .product-card:active { transform: scale(0.98); }
+  .product-card.ok { border-left-color: var(--success); }
+  .product-card.warn { border-left-color: var(--warning); }
+  .product-card.empty { border-left-color: var(--danger); }
+
+  .pc-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .pc-name { font-weight: 700; font-size: 14px; flex: 1; line-height: 1.3; }
+  .pc-ma { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    font-weight: 600; white-space: nowrap; margin-left: 8px;
+  }
+  .badge.ok { background: #dcfce7; color: #166534; }
+  .badge.warn { background: #fef9c3; color: #854d0e; }
+  .badge.empty { background: #fee2e2; color: #991b1b; }
+  .pc-bottom { display: flex; gap: 16px; margin-top: 10px; }
+  .pc-stat { font-size: 12px; color: var(--muted); }
+  .pc-stat strong { color: var(--text); font-size: 15px; display: block; }
+
+  /* ── QR PAGE ── */
+  .qr-mode-tabs { display: flex; gap: 10px; margin-bottom: 16px; }
+  .mode-btn {
+    flex: 1; padding: 12px; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--card); font-size: 13px; font-weight: 600;
+    cursor: pointer; text-align: center; color: var(--muted);
+  }
+  .mode-btn.active { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
+
+  #qr-reader { border-radius: 16px; overflow: hidden; }
+  #qr-reader video { width: 100% !important; border-radius: 16px; }
+
+  .qr-result {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px; margin-top: 14px; box-shadow: var(--shadow);
+    display: none;
+  }
+  .qr-result h3 { font-size: 16px; margin-bottom: 12px; }
+  .result-product { background: #f8fafc; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+  .rp-name { font-weight: 700; font-size: 15px; }
+  .rp-info { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .rp-stock { font-size: 20px; font-weight: 800; margin-top: 6px; }
+
+  .qty-row { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+  .qty-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 2px solid var(--border); background: var(--card);
+    font-size: 22px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; font-weight: 700;
+  }
+  .qty-input {
+    flex: 1; text-align: center; font-size: 24px; font-weight: 800;
+    padding: 10px; border: 2px solid var(--border); border-radius: 12px;
+    outline: none; background: var(--card);
+  }
+  .qty-input:focus { border-color: var(--primary); }
+
+  .note-input {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+    border-radius: 10px; font-size: 13px; margin-bottom: 12px; outline: none;
+  }
+  .note-input:focus { border-color: var(--primary); }
+
+  .action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn {
+    padding: 14px; border-radius: 12px; border: none;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .btn:active { transform: scale(0.96); opacity: 0.9; }
+  .btn-nhap { background: var(--success); color: white; }
+  .btn-xuat { background: var(--danger); color: white; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-outline { background: var(--card); color: var(--primary); border: 2px solid var(--primary); }
+
+  /* ── MANUAL QR INPUT ── */
+  .manual-box {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow);
+  }
+  .manual-box label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: block; }
+  .manual-input {
+    width: 100%; padding: 12px; border: 2px solid var(--border);
+    border-radius: 12px; font-size: 16px; font-weight: 700;
+    margin-bottom: 10px; outline: none; text-transform: uppercase;
+    font-family: monospace;
+  }
+  .manual-input:focus { border-color: var(--primary); }
+
+  /* ── HISTORY PAGE ── */
+  .hist-item {
+    background: var(--card); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hist-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .hist-icon.nhap { background: #dcfce7; }
+  .hist-icon.xuat { background: #fee2e2; }
+  .hist-info { flex: 1; }
+  .hist-name { font-weight: 600; font-size: 14px; }
+  .hist-time { font-size: 11px; color: var(--muted); }
+  .hist-qty { font-weight: 800; font-size: 16px; }
+  .hist-qty.nhap { color: var(--success); }
+  .hist-qty.xuat { color: var(--danger); }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: #1e293b; color: white; padding: 12px 20px;
+    border-radius: 30px; font-size: 14px; font-weight: 600;
+    z-index: 999; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s; white-space: nowrap; max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { background: #166534; }
+  #toast.error { background: #991b1b; }
+
+  /* ── LOADING ── */
+  .loading { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── QR GENERATE ── */
+  .qr-generate-wrap { text-align: center; padding: 20px 0; }
+  #qrCanvas { border-radius: 12px; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 10px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Quản Lý Kho</h1>
+      <p id="lastSync">Chưa đồng bộ</p>
+    </div>
+    <button class="sync-btn" onclick="syncData()" title="Đồng bộ">🔄</button>
+  </div>
+</div>
+
+<!-- SETUP BANNER -->
+<div id="setupBanner">
+  <strong>⚠️ Cần cài đặt URL Google Apps Script</strong>
+  Dán Web App URL của bạn vào đây để kết nối với Google Sheets:
+  <input type="url" class="setup-input" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+  <button class="setup-save-btn" onclick="saveScriptUrl()">💾 Lưu & Kết nối</button>
+</div>
+
+<div id="toast"></div>
+
+<!-- PAGE: TỒN KHO -->
+<div class="page active" id="page-inventory">
+  <div class="stats" id="statsRow">
+    <div class="stat-card"><div class="val" id="statTotal">—</div><div class="lbl">Tổng SP</div></div>
+    <div class="stat-card warning"><div class="val" id="statLow">—</div><div class="lbl">Sắp hết / Hết</div></div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Tìm theo tên hoặc mã SP..." oninput="filterProducts()">
+  </div>
+  <div id="productList"><div class="loading"><div class="spinner"></div>Đang tải...</div></div>
+</div>
+
+<!-- PAGE: QUÉT QR -->
+<div class="page" id="page-qr">
+  <div class="qr-mode-tabs">
+    <button class="mode-btn active" id="modeCamera" onclick="switchQRMode('camera')">📷 Quét QR</button>
+    <button class="mode-btn" id="modeManual" onclick="switchQRMode('manual')">⌨️ Nhập mã</button>
+    <button class="mode-btn" id="modeGenerate" onclick="switchQRMode('generate')">🏷️ Tạo QR</button>
+  </div>
+
+  <!-- Camera QR -->
+  <div id="cameraMode">
+    <div id="qr-reader" style="width:100%"></div>
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">Hướng camera vào mã QR trên sản phẩm</p>
+  </div>
+
+  <!-- Manual input -->
+  <div id="manualMode" style="display:none">
+    <div class="manual-box">
+      <label>Nhập mã sản phẩm (VD: SP001)</label>
+      <input type="text" class="manual-input" id="manualMaInput" placeholder="SP001" oninput="this.value=this.value.toUpperCase()">
+      <button class="btn btn-primary" style="width:100%" onclick="lookupManual()">🔎 Tìm sản phẩm</button>
+    </div>
+  </div>
+
+  <!-- Generate QR -->
+  <div id="generateMode" style="display:none">
+    <div class="manual-box">
+      <label>Chọn sản phẩm để tạo mã QR</label>
+      <select id="qrGenSelect" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:10px" onchange="generateQR()">
+        <option value="">— Chọn sản phẩm —</option>
+      </select>
+      <div class="qr-generate-wrap" id="qrWrap" style="display:none">
+        <canvas id="qrCanvas" width="200" height="200"></canvas>
+        <p id="qrLabel" style="margin-top:8px;font-weight:700;font-size:14px"></p>
+        <p style="font-size:12px;color:var(--muted)">Chụp màn hình để lưu mã QR</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Result Panel -->
+  <div class="qr-result" id="qrResult">
+    <h3>📋 Thao tác kho</h3>
+    <div class="result-product" id="resultProduct"></div>
+    <div class="qty-row">
+      <button class="qty-btn" onclick="changeQty(-1)">−</button>
+      <input type="number" class="qty-input" id="qtyInput" value="1" min="1" max="9999">
+      <button class="qty-btn" onclick="changeQty(1)">+</button>
+    </div>
+    <input type="text" class="note-input" id="noteInput" placeholder="Ghi chú (tuỳ chọn)">
+    <div class="action-btns">
+      <button class="btn btn-nhap" onclick="doNhapKho()">📥 Nhập kho</button>
+      <button class="btn btn-xuat" onclick="doXuatKho()">📤 Xuất kho</button>
+    </div>
+    <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="clearResult()">🔄 Quét lại</button>
+  </div>
+</div>
+
+<!-- PAGE: LỊCH SỬ -->
+<div class="page" id="page-history">
+  <div class="section-title">50 thao tác gần nhất</div>
+  <div id="historyList"><div class="loading"><div class="spinner"></div>Đang tải...</div></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-item active" onclick="showPage('inventory',this)">
+    <span class="icon">📦</span><span>Tồn kho</span>
+  </button>
+  <button class="nav-item" onclick="showPage('qr',this)">
+    <span class="icon">📷</span><span>Quét QR</span>
+  </button>
+  <button class="nav-item" onclick="showPage('history',this)">
+    <span class="icon">📋</span><span>Lịch sử</span>
+  </button>
+</nav>
+
+<!-- QR CODE GENERATOR (tiny pure-JS) -->
+<script>
+// Mini QR encoder (simple, no dependencies)
+// Sử dụng thư viện qrcode từ CDN
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+// ============================================================
+// CONFIG & STATE
+// ============================================================
+let SCRIPT_URL = localStorage.getItem('scriptUrl') || 'https://script.google.com/macros/s/AKfycbxrjL0UpjpRp1S8fLPf9aRTCYIKMi0N09ng9n7hhsdbtqO3leQlh--FB4HQ0Q7OxOOL1A/exec';
+let allProducts = [];
+let currentProduct = null;
+let qrScanner = null;
+let currentQRMode = 'camera';
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  if (!SCRIPT_URL) {
+    document.getElementById('setupBanner').style.display = 'block';
+  } else {
+    syncData();
+  }
+});
+
+function saveScriptUrl() {
+  const url = document.getElementById('scriptUrlInput').value.trim();
+  if (!url.includes('script.google.com')) {
+    showToast('❌ URL không hợp lệ', 'error'); return;
+  }
+  SCRIPT_URL = url;
+  localStorage.setItem('scriptUrl', url);
+  document.getElementById('setupBanner').style.display = 'none';
+  showToast('✅ Đã lưu! Đang kết nối...', 'success');
+  syncData();
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+
+  if (name === 'qr') {
+    setTimeout(() => initQRScanner(), 100);
+  } else {
+    stopQRScanner();
+    if (name === 'history') loadHistory();
+  }
+}
+
+// ============================================================
+// API CALLS
+// ============================================================
+async function apiCall(action, payload = {}) {
+  if (!SCRIPT_URL) { showToast("⚠️ Chưa cài đặt URL Script", "error"); throw new Error("No script URL"); }
+  const params = new URLSearchParams({ action, ...payload });
+  const url = SCRIPT_URL + "?" + params.toString();
+  return new Promise((resolve, reject) => {
+    const cbName = "_cb" + Date.now();
+    const script = document.createElement("script");
+    window[cbName] = (d) => { try { delete window[cbName]; document.body.removeChild(script); } catch(e){} if (!d.ok) reject(new Error(d.msg||"Lỗi")); else resolve(d); };
+    script.onerror = () => reject(new Error("Không kết nối được Apps Script"));
+    script.src = url + "&callback=" + cbName;
+    document.body.appendChild(script);
+    setTimeout(() => { try { delete window[cbName]; document.body.removeChild(script); } catch(e){} reject(new Error("Timeout sau 15 giây")); }, 15000);
+  });
+}
+
+// ============================================================
+// SYNC & INVENTORY PAGE
+// ============================================================
+async function syncData() {
+  try {
+    const data = await apiCall('getInventory');
+    allProducts = data.inventory || [];
+    renderProducts(allProducts);
+    updateStats();
+    const now = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('lastSync').textContent = `Đồng bộ lúc ${now}`;
+    // Cập nhật select tạo QR
+    populateQRSelect();
+    showToast('✅ Đã đồng bộ', 'success');
+  } catch (err) {
+    showToast('❌ Lỗi kết nối: ' + err.message, 'error');
+  }
+}
+
+function updateStats() {
+  const low = allProducts.filter(p => p.trangThai !== '✅ Còn hàng').length;
+  document.getElementById('statTotal').textContent = allProducts.length;
+  document.getElementById('statLow').textContent = low;
+}
+
+function renderProducts(list) {
+  const el = document.getElementById('productList');
+  if (!list.length) { el.innerHTML = '<div class="loading">Không có sản phẩm nào</div>'; return; }
+  el.innerHTML = list.map(p => {
+    const cls = p.trangThai.includes('Hết') ? 'empty' : p.trangThai.includes('Sắp') ? 'warn' : 'ok';
+    return `
+    <div class="product-card ${cls}" onclick="selectProductFromList('${p.maSP}')">
+      <div class="pc-top">
+        <div>
+          <div class="pc-name">${p.ten}</div>
+          <div class="pc-ma">${p.maSP}</div>
+        </div>
+        <span class="badge ${cls}">${p.trangThai}</span>
+      </div>
+      <div class="pc-bottom">
+        <div class="pc-stat"><strong>${p.tonKho} ${p.donVi}</strong>Tồn kho</div>
+        <div class="pc-stat"><strong>${fmt(p.giaBanTT)}đ</strong>TikTok</div>
+        <div class="pc-stat"><strong>${fmt(p.giaBanSP)}đ</strong>Shopee</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterProducts() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allProducts.filter(p =>
+    p.ten.toLowerCase().includes(q) || p.maSP.toLowerCase().includes(q)
+  );
+  renderProducts(filtered);
+}
+
+function selectProductFromList(maSP) {
+  // Chuyển sang trang QR với sản phẩm đã chọn
+  const navQR = document.querySelectorAll('.nav-item')[1];
+  showPage('qr', navQR);
+  setTimeout(() => {
+    switchQRMode('manual');
+    document.getElementById('manualMaInput').value = maSP;
+    lookupManual();
+  }, 200);
+}
+
+// ============================================================
+// QR SCANNER
+// ============================================================
+function initQRScanner() {
+  if (currentQRMode !== 'camera') return;
+  if (qrScanner) return;
+  qrScanner = new Html5Qrcode('qr-reader');
+  qrScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    onQRSuccess,
+    () => {}
+  ).catch(err => {
+    console.warn('Camera error:', err);
+    showToast('⚠️ Không mở được camera', 'error');
+  });
+}
+
+function stopQRScanner() {
+  if (qrScanner) {
+    qrScanner.stop().then(() => { qrScanner = null; }).catch(() => { qrScanner = null; });
+  }
+}
+
+async function onQRSuccess(text) {
+  stopQRScanner();
+  await lookupProduct(text.trim().toUpperCase());
+}
+
+function switchQRMode(mode) {
+  currentQRMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+
+  document.getElementById('cameraMode').style.display = mode === 'camera' ? 'block' : 'none';
+  document.getElementById('manualMode').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('generateMode').style.display = mode === 'generate' ? 'block' : 'none';
+
+  clearResult();
+  stopQRScanner();
+  if (mode === 'camera') setTimeout(initQRScanner, 100);
+}
+
+function lookupManual() {
+  const ma = document.getElementById('manualMaInput').value.trim().toUpperCase();
+  if (!ma) { showToast('Nhập mã sản phẩm', 'error'); return; }
+  lookupProduct(ma);
+}
+
+async function lookupProduct(maSP) {
+  // Tìm trong cache trước
+  let product = allProducts.find(p => p.maSP === maSP);
+  if (!product && SCRIPT_URL) {
+    try {
+      const data = await apiCall('getInventory');
+      allProducts = data.inventory || [];
+      product = allProducts.find(p => p.maSP === maSP);
+    } catch (e) {}
+  }
+
+  if (!product) {
+    showToast(`❌ Không tìm thấy: ${maSP}`, 'error');
+    return;
+  }
+
+  currentProduct = product;
+  const cls = product.trangThai.includes('Hết') ? 'empty' : product.trangThai.includes('Sắp') ? 'warn' : 'ok';
+  document.getElementById('resultProduct').innerHTML = `
+    <div class="rp-name">${product.ten}</div>
+    <div class="rp-info">${product.maSP} · ${product.donVi}</div>
+    <div class="rp-stock" style="color:${cls==='ok'?'var(--success)':cls==='warn'?'var(--warning)':'var(--danger)'}">
+      Tồn kho: ${product.tonKho} ${product.donVi}
+    </div>
+  `;
+  document.getElementById('qtyInput').value = 1;
+  document.getElementById('noteInput').value = '';
+  document.getElementById('qrResult').style.display = 'block';
+  document.getElementById('qrResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+function clearResult() {
+  currentProduct = null;
+  document.getElementById('qrResult').style.display = 'none';
+  if (currentQRMode === 'camera' && !qrScanner) setTimeout(initQRScanner, 200);
+}
+
+function changeQty(delta) {
+  const input = document.getElementById('qtyInput');
+  const val = Math.max(1, (parseInt(input.value) || 1) + delta);
+  input.value = val;
+}
+
+async function doNhapKho() {
+  if (!currentProduct) return;
+  const sl = parseInt(document.getElementById('qtyInput').value) || 0;
+  const note = document.getElementById('noteInput').value;
+  if (sl <= 0) { showToast('Số lượng phải > 0', 'error'); return; }
+  try {
+    const res = await apiCall('nhapKho', { maSP: currentProduct.maSP, soLuong: sl, ghiChu: note });
+    showToast(`✅ Nhập ${sl} ${currentProduct.donVi} → Tồn: ${res.sau}`, 'success');
+    currentProduct.tonKho = res.sau;
+    const idx = allProducts.findIndex(p => p.maSP === currentProduct.maSP);
+    if (idx >= 0) allProducts[idx].tonKho = res.sau;
+    clearResult();
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  }
+}
+
+async function doXuatKho() {
+  if (!currentProduct) return;
+  const sl = parseInt(document.getElementById('qtyInput').value) || 0;
+  const note = document.getElementById('noteInput').value;
+  if (sl <= 0) { showToast('Số lượng phải > 0', 'error'); return; }
+  try {
+    const res = await apiCall('xuatKho', { maSP: currentProduct.maSP, soLuong: sl, ghiChu: note });
+    showToast(`✅ Xuất ${sl} ${currentProduct.donVi} → Tồn: ${res.sau}`, 'success');
+    currentProduct.tonKho = res.sau;
+    const idx = allProducts.findIndex(p => p.maSP === currentProduct.maSP);
+    if (idx >= 0) allProducts[idx].tonKho = res.sau;
+    clearResult();
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// QR CODE GENERATOR
+// ============================================================
+function populateQRSelect() {
+  const sel = document.getElementById('qrGenSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Chọn sản phẩm —</option>' +
+    allProducts.map(p => `<option value="${p.maSP}">${p.maSP} — ${p.ten}</option>`).join('');
+  if (current) sel.value = current;
+}
+
+function generateQR() {
+  const maSP = document.getElementById('qrGenSelect').value;
+  const wrap = document.getElementById('qrWrap');
+  if (!maSP) { wrap.style.display = 'none'; return; }
+
+  const product = allProducts.find(p => p.maSP === maSP);
+  wrap.style.display = 'block';
+  document.getElementById('qrLabel').textContent = product ? product.ten : maSP;
+
+  // Clear canvas và tạo QR mới
+  const container = document.getElementById('qrCanvas');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: maSP,
+    width: 200, height: 200,
+    colorDark: '#1e293b', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+
+// ============================================================
+// HISTORY PAGE
+// ============================================================
+async function loadHistory() {
+  try {
+    const data = await apiCall('getHistory');
+    const list = data.history || [];
+    const el = document.getElementById('historyList');
+    if (!list.length) { el.innerHTML = '<div class="loading">Chưa có lịch sử</div>'; return; }
+    el.innerHTML = list.map(h => `
+      <div class="hist-item">
+        <div class="hist-icon ${h.loai.toLowerCase()}">${h.loai === 'Nhập' ? '📥' : '📤'}</div>
+        <div class="hist-info">
+          <div class="hist-name">${h.ten}</div>
+          <div class="hist-time">${h.thoiGian} · ${h.ghiChu}</div>
+        </div>
+        <div class="hist-qty ${h.loai.toLowerCase()}">${h.loai === 'Nhập' ? '+' : '-'}${h.soLuong}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('historyList').innerHTML = '<div class="loading">❌ Lỗi tải lịch sử</div>';
+  }
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmt(n) {
+  return (n || 0).toLocaleString('vi-VN');
+}
+</script>
+</body>
+</html>
